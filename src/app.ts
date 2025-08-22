@@ -1,7 +1,8 @@
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
-import { userRoutes } from './app/modules/User/user.routes';
-import { adminRoutes } from './app/modules/admin/admin.router';
+import router from './app/routes';
+import globalErrorHandler from './app/middlewares/globalErrorHandler';
+import { NotFoundPage } from './app/middlewares/not-found';
 
 const app: Application = express();
 app.use(cors());
@@ -16,7 +17,9 @@ app.get('/', (req: Request, res: Response) => {
     })
 });
 
-app.use('/api/v1/user', userRoutes);
-app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1', router);
+
+app.use(globalErrorHandler)
+app.use(NotFoundPage)
 
 export default app;
