@@ -1,30 +1,52 @@
-import { Prisma, PrismaClient } from "@prisma/client"
-const prisma = new PrismaClient()
+import { Prisma } from "@prisma/client";
+import { paginationHelper } from "../../../helpars/paginationHelper";
+import { adminSearchAbleFields } from "./admin.constant";
+import prisma from "../../../helpars/prisma";
 
-const getAllFormDB = async (params: any) => {
 
-const andConditaions: Prisma.AdminWhereInput[] = [];
-   const adminSerchAbleFilds = ['name', 'email'];
+const getAllFromDB = async (params: any, options: any) => {
+    const { page, limit, skip } = paginationHelper.calculatePagination(options);
+    const { searchTerm, ...filterData } = params;
+    const andCondions: Prisma.AdminWhereInput[] = [];
+
+    //console.log(filterData);
     if (params.searchTerm) {
-        andConditaions.push({
-            OR: adminSerchAbleFilds.map(field => ({
+        andCondions.push({
+            OR: adminSearchAbleFields.map(field => ({
                 [field]: {
                     contains: params.searchTerm,
-                    mode: "insensitive"
+                    mode: 'insensitive'
+                }
+            }))
+        })
+    };
+
+    if (Object.keys(filterData).length > 0) {
+        andCondions.push({
+            AND: Object.keys(filterData).map(key => ({
+                [key]: {
+                    equals: filterData[key]
                 }
             }))
         })
     }
 
-    console.dir(andConditaions, { depth: "inifinity" });
-    const whereConditions: Prisma.AdminWhereInput = { AND: andConditaions };
+    //console.dir(andCondions, { depth: 'inifinity' })
+    const whereConditons: Prisma.AdminWhereInput = { AND: andCondions }
 
     const result = await prisma.admin.findMany({
-        where: whereConditions
-    })
-    return result
+        where: whereConditons,
+        skip,
+        take: limit,
+        orderBy: options.sortBy && options.sortOrder ? {
+            [options.sortBy]: options.sortOrder
+        } : {
+            createdAt: 'desc'
+        }
+    });
+    return result;
 }
 
 export const adminServer = {
-    getAllFormDB
+    getAllFromDB
 }
