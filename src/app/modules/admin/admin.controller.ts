@@ -39,6 +39,7 @@ const updateIntoDB = catchAsync(async (req: Request, res: Response) => {
     const { id } = req.params;
 
     const result = await AdminService.updateIntoDB(id, req.body);
+    
     sendResponse(res, {
         statusCode: httpStatus.OK,
         success: true,
