@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 const createAdmin = async (data: any) => {
 
-    const hassPassword: string = await bcrypt.hash(data.password, 8)
+    const hassPassword: string = await bcrypt.hash(data.password,8)
 
     const userData = {
         email: data.admin.email,
