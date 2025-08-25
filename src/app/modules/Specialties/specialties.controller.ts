@@ -20,14 +20,27 @@ const getAllFromDB = catchAsync(async (req, res) => {
     const result = await SpecilitesService.getAllFromDB()
 
     sendResponse(res, {
-        statusCode: httpStatus.CREATED,
+        statusCode: httpStatus.OK,
         success: true,
         message: "Retrivet  successfully!",
         data: result
     })
 })
 
+const deleteAllFromDB = catchAsync(async (req, res) => {
+    const id = req.params.id
+    const result = await SpecilitesService.deleteAllFromDB(id)
+
+    sendResponse(res, {
+        statusCode: httpStatus.OK,
+        success: true,
+        message: "Delete successfully!",
+        data: result
+    })
+})
+
 export const SpecialtiesController = {
     inserIntoDB,
-    getAllFromDB
+    getAllFromDB,
+    deleteAllFromDB
 }
