@@ -8,6 +8,8 @@ import auth from '../../middlewares/auth';
 const router = express.Router();
 
 
+router.get("/",userController.getAllUser)
+
 router.post(
     "/create-admin",
     auth(UserRole.SUPER_ADMIN, UserRole.ADMIN),
@@ -38,6 +40,10 @@ router.post(
     }
 );
 
-router.patch("/status/:id", userController.updateStatus)
+router.patch(
+    "/status/:id",
+     auth(UserRole.SUPER_ADMIN,UserRole.ADMIN),
+      userController.updateStatus
+)
 
 export const userRoutes = router;
