@@ -101,9 +101,30 @@ const createPatient = async (req: Request): Promise<Patient> => {
     return result;
 };
 
+const updateUserStatus = async (status: UserRole, id: string) => {
+    console.log(status, id)
+
+    await prisma.user.findUniqueOrThrow({
+        where: {
+            id
+        }
+    });
+
+    const updateUserStatus = await prisma.user.update({
+        where: {
+            id
+        },
+        data: status
+    })
+
+    return updateUserStatus
+}
+
+
 
 export const userService = {
     createAdmin,
     createDoctor,
-    createPatient
+    createPatient,
+    updateUserStatus
 }

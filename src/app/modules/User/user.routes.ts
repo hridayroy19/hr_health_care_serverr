@@ -38,4 +38,6 @@ router.post(
     }
 );
 
+router.patch("/status/:id", userController.updateStatus)
+
 export const userRoutes = router;
