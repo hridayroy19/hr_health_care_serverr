@@ -8,7 +8,8 @@ import auth from '../../middlewares/auth';
 const router = express.Router();
 
 
-router.get("/",userController.getAllUser)
+router.get("/",auth(UserRole.SUPER_ADMIN,UserRole.ADMIN), userController.getAllUser)
+router.get("/me", auth(UserRole.SUPER_ADMIN,UserRole.ADMIN,UserRole.DOCTOR,UserRole.PATIENT), userController.getMyProfile)
 
 router.post(
     "/create-admin",
@@ -45,5 +46,16 @@ router.patch(
      auth(UserRole.SUPER_ADMIN,UserRole.ADMIN),
       userController.updateStatus
 )
+
+router.patch(
+    "/update-my-profile",
+    auth(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.DOCTOR, UserRole.PATIENT),
+    fileUploader.upload.single('file'),
+    (req: Request, res: Response, next: NextFunction) => {
+        req.body = JSON.parse(req.body.data)
+        return userController.updateMyProfile(req, res, next)
+    }
+);
+
 
 export const userRoutes = router;
