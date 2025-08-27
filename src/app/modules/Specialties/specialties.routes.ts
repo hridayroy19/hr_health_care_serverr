@@ -3,23 +3,23 @@ import { fileUploader } from '../../../helpars/fileUploader';
 import { SpecialtiesController } from './specialties.controller';
 import { UserRole } from '@prisma/client';
 import auth from '../../middlewares/auth';
-
-
+import { SpecialtiesValidtaion } from './specialties.validation';
 
 const router = express.Router();
 
-router.get(
-    '/',
-    SpecialtiesController.getAllFromDB
-);
 
 router.post(
     '/',
     fileUploader.upload.single('file'),
     (req: Request, res: Response, next: NextFunction) => {
-        req.body = (JSON.parse(req.body.data))
+        req.body = SpecialtiesValidtaion.create.parse(JSON.parse(req.body.data))
         return SpecialtiesController.inserIntoDB(req, res, next)
     }
+);
+
+router.get(
+    '/',
+    SpecialtiesController.getAllFromDB
 );
 
 

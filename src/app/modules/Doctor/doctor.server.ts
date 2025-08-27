@@ -1,11 +1,96 @@
 
+import { Doctor, Prisma, UserStatus } from "@prisma/client"
 import prisma from "../../../shared/prisma"
+import { IDoctorFilterRequest, IDoctorUpdate } from "./doctor.interface"
+import { IPaginationOptions } from "../../interfaces/pagination";
+import { paginationHelper } from "../../../helpars/paginationHelper";
+import { doctorSearchableFields } from "./doctor.constants";
 
 
-const getAllFromDB = async () => {
-    const result = await prisma.doctor.findMany()
-    return result
-}
+const getAllFromDB = async (
+    filters: IDoctorFilterRequest,
+    options: IPaginationOptions,
+) => {
+    const { limit, page, skip } = paginationHelper.calculatePagination(options);
+    const { searchTerm, specialties, ...filterData } = filters;
+
+    const andConditions: Prisma.DoctorWhereInput[] = [];
+
+    if (searchTerm) {
+        andConditions.push({
+            OR: doctorSearchableFields.map(field => ({
+                [field]: {
+                    contains: searchTerm,
+                    mode: 'insensitive',
+                },
+            })),
+        });
+    };
+
+    // doctor > doctorSpecialties > specialties -> title
+
+    if (specialties && specialties.length > 0) {
+        andConditions.push({
+            doctorSpecialties: {
+                some: {
+                    specialitie: {
+                        title: {
+                            contains: specialties,
+                            mode: 'insensitive'
+                        }
+                    }
+                }
+            }
+        })
+    };
+
+
+    if (Object.keys(filterData).length > 0) {
+        const filterConditions = Object.keys(filterData).map(key => ({
+            [key]: {
+                equals: (filterData as any)[key],
+            },
+        }));
+        andConditions.push(...filterConditions);
+    }
+
+    andConditions.push({
+        isDeleted: false,
+    });
+
+    const whereConditions: Prisma.DoctorWhereInput =
+        andConditions.length > 0 ? { AND: andConditions } : {};
+
+    const result = await prisma.doctor.findMany({
+        where: whereConditions,
+        skip,
+        take: limit,
+        orderBy: options.sortBy && options.sortOrder
+            ? { [options.sortBy]: options.sortOrder }
+            : { createdAt: 'desc' },
+        include: {
+            doctorSpecialties: {
+                include: {
+                    specialitie: true
+                }
+            }
+        },
+    });
+
+    const total = await prisma.doctor.count({
+        where: whereConditions,
+    });
+
+    return {
+        meta: {
+            total,
+            page,
+            limit,
+        },
+        data: result,
+    };
+};
+
 
 const getIdFromDB = async (id: any) => {
     const result = await prisma.doctor.findUniqueOrThrow({
@@ -16,26 +101,115 @@ const getIdFromDB = async (id: any) => {
     return result
 }
 
-const updateIdFromDB = async (id: any, payload:any) => {
+const updateIntoDB = async (id: string, payload: IDoctorUpdate) => {
+    const { specialtie, ...doctorData } = payload;
+    // console.log(payload,"payload")
 
-    const userData = await prisma.doctor.findUniqueOrThrow({
+    const doctorInfo = await prisma.doctor.findUniqueOrThrow({
         where: {
-            id: id,
+            id
+        }
+    });
+
+    //  console.log(doctorInfo,"information")
+    await prisma.$transaction(async (transactionClient) => {
+        await transactionClient.doctor.update({
+            where: {
+                id
+            },
+            data: doctorData
+        });
+
+        if (specialtie && specialtie.length > 0) {
+            // delete specialties
+            const deleteSpecialtiesIds = specialtie.filter(specialty => specialty.isDeleted);
+            // console.log(deleteSpecialtiesIds,"data")
+            for (const specialty of deleteSpecialtiesIds) {
+                await transactionClient.doctorSpecialties.deleteMany({
+                    where: {
+                        doctorId: doctorInfo.id,
+                       specialitiesId: specialty.specialitiesId 
+                    }
+                });
+            }
+
+            // create specialties
+            const createSpecialtiesIds = specialtie.filter(specialty => !specialty.isDeleted);
+            console.log(createSpecialtiesIds,"")
+            for (const specialty of createSpecialtiesIds) {
+                await transactionClient.doctorSpecialties.create({
+                    data: {
+                        doctorId: doctorInfo.id,
+                        specialitiesId: specialty.specialitiesId 
+                    }
+                });
+            }
         }
     })
 
-    const result = await prisma.doctor.update({
+    const result = await prisma.doctor.findUnique({
+        
         where: {
-            id
+            id: doctorInfo.id
         },
-        data: payload
+        include: {
+            doctorSpecialties: {
+                include: {
+                    specialitie: true
+                }
+            }
+        }
     })
-    return result
-}
+    return result;
+};
+
+
+
+const deleteFromDB = async (id: string): Promise<Doctor> => {
+    return await prisma.$transaction(async transactionClient => {
+        const deleteDoctor = await transactionClient.doctor.delete({
+            where: {
+                id,
+            },
+        });
+
+        await transactionClient.user.delete({
+            where: {
+                email: deleteDoctor.email,
+            },
+        });
+
+        return deleteDoctor;
+    });
+};
+
+const softDelete = async (id: string): Promise<Doctor> => {
+    return await prisma.$transaction(async transactionClient => {
+        const deleteDoctor = await transactionClient.doctor.update({
+            where: { id },
+            data: {
+                isDeleted: true,
+            },
+        });
+
+        await transactionClient.user.update({
+            where: {
+                email: deleteDoctor.email,
+            },
+            data: {
+                status: UserStatus.DELETED,
+            },
+        });
+
+        return deleteDoctor;
+    });
+};
 
 
 export const DoctorService = {
     getAllFromDB,
     getIdFromDB,
-    updateIdFromDB,
+    updateIntoDB,
+    deleteFromDB,
+    softDelete
 }
